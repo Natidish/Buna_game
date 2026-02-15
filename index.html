@@ -1,0 +1,82 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>☕ ቡና አገናኝ</title>
+    <style>
+        body { font-family: Arial; text-align: center; background: #f0e68c; padding: 20px; }
+        button { background: #228B22; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 10px; margin: 10px; }
+        button:active { background: #006400; }
+        .counter { font-size: 24px; margin: 20px; }
+        .ton { color: #4169E1; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <h1>☕ ቡና አገናኝ</h1>
+    <p>በቀን 1000 ቡና = <span class="ton">0.01 TON</span></p>
+    
+    <button onclick="tap()">🥑 ቡና! +1</button>
+    <div class="counter">ቡና: <span id="count">0</span></div>
+    <div class="counter">TON: <span id="ton">0</span></div>
+    
+    <button onclick="dailyBonus()">⭐ የቀን ባንስ</button>
+    <button onclick="claimTON()">💰 TON ይወጣል</button>
+    <button onclick="share()">👥 ጓደኛ አጋባ</button>
+
+    <script>
+        let bananas = localStorage.getItem('bananas') || 0;
+        let tonBalance = localStorage.getItem('ton') || 0;
+        
+        document.getElementById('count').innerText = bananas;
+        document.getElementById('ton').innerText = parseFloat(tonBalance).toFixed(3);
+        
+        function tap() {
+            bananas++;
+            localStorage.setItem('bananas', bananas);
+            document.getElementById('count').innerText = bananas;
+            if (navigator.vibrate) navigator.vibrate(50);
+        }
+        
+        function dailyBonus() {
+            let today = new Date().toDateString();
+            if (localStorage.getItem('lastBonus') != today) {
+                bananas += 200;
+                localStorage.setItem('bananas', bananas);
+                localStorage.setItem('lastBonus', today);
+                alert('⭐ +200 ቡና ባንስ!');
+                location.reload();
+            } else {
+                alert('✅ ዛሬ ባንስ ተቀበሉ!');
+            }
+        }
+        
+        function claimTON() {
+            let tonReward = Math.floor(bananas / 1000) * 0.01;
+            if (tonReward > 0) {
+                tonBalance = parseFloat(tonBalance) + tonReward;
+                bananas = bananas % 1000;
+                localStorage.setItem('bananas', bananas);
+                localStorage.setItem('ton', tonBalance);
+                alert(`✅ ${tonReward} TON = ${tonReward*320} ብር!
+💳 @wallet Testnet`);
+                location.reload();
+            } else {
+                alert('❌ 1000 ቡና አስፈልጋል!');
+            }
+        }
+        
+        function share() {
+            let text = `☕ ቡና አገናኝ! እኔ ${bananas} ቡና = ${tonBalance} TON! t.me/BunaGameBot?startapp`;
+            if (navigator.share) {
+                navigator.share({title: 'ቡና አገናኝ', text, url: window.location.href});
+            } else {
+                alert(text);
+            }
+        }
+        
+        Telegram.WebApp.ready();
+        Telegram.WebApp.expand();
+    </script>
+</body>
+</html>
