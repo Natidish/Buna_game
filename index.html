@@ -1,82 +1,114 @@
 <!DOCTYPE html>
-<html>
+<html lang="am">
 <head>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
-    <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>☕ ቡና አገናኝ</title>
-    <style>
-        body { font-family: Arial; text-align: center; background: #f0e68c; padding: 20px; }
-        button { background: #228B22; color: white; border: none; padding: 15px 30px; font-size: 18px; border-radius: 10px; margin: 10px; }
-        button:active { background: #006400; }
-        .counter { font-size: 24px; margin: 20px; }
-        .ton { color: #4169E1; font-weight: bold; }
-    </style>
-</head>
-<body>
-    <h1>☕ ቡና አገናኝ</h1>
-    <p>በቀን 1000 ቡና = <span class="ton">0.01 TON</span></p>
-    
-    <button onclick="tap()">🥑 ቡና! +1</button>
-    <div class="counter">ቡና: <span id="count">0</span></div>
-    <div class="counter">TON: <span id="ton">0</span></div>
-    
-    <button onclick="dailyBonus()">⭐ የቀን ባንስ</button>
-    <button onclick="claimTON()">💰 TON ይወጣል</button>
-    <button onclick="share()">👥 ጓደኛ አጋባ</button>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>☕ Buna Game</title>
 
-    <script>
-        let bananas = localStorage.getItem('bananas') || 0;
-        let tonBalance = localStorage.getItem('ton') || 0;
-        
-        document.getElementById('count').innerText = bananas;
-        document.getElementById('ton').innerText = parseFloat(tonBalance).toFixed(3);
-        
-        function tap() {
-            bananas++;
-            localStorage.setItem('bananas', bananas);
-            document.getElementById('count').innerText = bananas;
-            if (navigator.vibrate) navigator.vibrate(50);
-        }
-        
-        function dailyBonus() {
-            let today = new Date().toDateString();
-            if (localStorage.getItem('lastBonus') != today) {
-                bananas += 200;
-                localStorage.setItem('bananas', bananas);
-                localStorage.setItem('lastBonus', today);
-                alert('⭐ +200 ቡና ባንስ!');
-                location.reload();
-            } else {
-                alert('✅ ዛሬ ባንስ ተቀበሉ!');
-            }
-        }
-        
-        function claimTON() {
-            let tonReward = Math.floor(bananas / 1000) * 0.01;
-            if (tonReward > 0) {
-                tonBalance = parseFloat(tonBalance) + tonReward;
-                bananas = bananas % 1000;
-                localStorage.setItem('bananas', bananas);
-                localStorage.setItem('ton', tonBalance);
-                alert(`✅ ${tonReward} TON = ${tonReward*320} ብር!
-💳 @wallet Testnet`);
-                location.reload();
-            } else {
-                alert('❌ 1000 ቡና አስፈልጋል!');
-            }
-        }
-        
-        function share() {
-            let text = `☕ ቡና አገናኝ! እኔ ${bananas} ቡና = ${tonBalance} TON! t.me/BunaGameBot?startapp`;
-            if (navigator.share) {
-                navigator.share({title: 'ቡና አገናኝ', text, url: window.location.href});
-            } else {
-                alert(text);
-            }
-        }
-        
-        Telegram.WebApp.ready();
-        Telegram.WebApp.expand();
-    </script>
+  <!-- Telegram Mini App -->
+  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      background: #f0e68c;
+      padding: 20px;
+    }
+    button {
+      background: #228B22;
+      color: white;
+      border: none;
+      padding: 15px 30px;
+      font-size: 18px;
+      border-radius: 10px;
+      margin: 10px;
+    }
+    .counter {
+      font-size: 22px;
+      margin: 15px;
+      font-weight: bold;
+    }
+  </style>
+</head>
+
+<body>
+
+  <h1>☕ Buna Game</h1>
+  <p>Tap and collect Buna points</p>
+
+  <button onclick="tap()">☕ Buna +1</button>
+
+  <div class="counter">Buna: <span id="buna">0</span></div>
+  <div class="counter">Points: <span id="points">0</span></div>
+
+  <button onclick="dailyBonus()">⭐ Daily Bonus</button>
+  <button onclick="shareGame()">👥 Share Game</button>
+
+  <script>
+    /* ---------------- Telegram Setup ---------------- */
+    const tg = Telegram.WebApp;
+    tg.ready();
+    tg.expand();
+
+    const user = tg.initDataUnsafe?.user;
+    if (user) {
+      console.log("User ID:", user.id);
+    }
+
+    /* ---------------- Game State ---------------- */
+    let buna = parseInt(localStorage.getItem("buna")) || 0;
+    let points = parseInt(localStorage.getItem("points")) || 0;
+
+    updateUI();
+
+    /* ---------------- Functions ---------------- */
+
+    function tap() {
+      buna++;
+      points++;
+
+      save();
+      updateUI();
+
+      if (navigator.vibrate) navigator.vibrate(40);
+    }
+
+    function dailyBonus() {
+      const today = new Date().toDateString();
+      const last = localStorage.getItem("lastBonus");
+
+      if (last !== today) {
+        buna += 200;
+        points += 200;
+        localStorage.setItem("lastBonus", today);
+
+        save();
+        updateUI();
+        alert("⭐ Daily Bonus: +200 Buna");
+      } else {
+        alert("✅ You already claimed today’s bonus");
+      }
+    }
+
+    function shareGame() {
+      Telegram.WebApp.openTelegramLink(
+        "https://t.me/share/url?url=https://t.me/BunaGameBot&text=☕%20Play%20Buna%20Game!"
+      );
+    }
+
+    /* ---------------- Helpers ---------------- */
+
+    function save() {
+      localStorage.setItem("buna", buna);
+      localStorage.setItem("points", points);
+    }
+
+    function updateUI() {
+      document.getElementById("buna").innerText = buna;
+      document.getElementById("points").innerText = points;
+    }
+  </script>
+
 </body>
 </html>
