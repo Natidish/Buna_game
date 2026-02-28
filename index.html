@@ -1,114 +1,120 @@
-<!DOCTYPE html>
-<html lang="am">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>☕ Buna Game</title>
+import { useState, useEffect } from 'react';
+import { TelegramWebApp } from '@twa-dev/sdk';
+import { TonConnectButton } from '@tonconnect/ui-react';
+import { useTonConnectUI } from '@tonconnect/ui-react';
+import { Address } from 'ton-core';
+import './App.css';  // Tailwind imported
 
-  <!-- Telegram Mini App -->
-  <script src="https://telegram.org/js/telegram-web-app.js"></script>
+function BunaGame() {
+  const [userId, setUserId] = useState('');
+  const [points, setPoints] = useState(0);
+  const [energy, setEnergy] = useState(100);
+  const [level, setLevel] = useState(1);
+  const [coinsPerTap, setCoinsPerTap] = useState(1);
+  const [referrals, setReferrals] = useState(0);
+  const [isTapped, setIsTapped] = useState(false);
+  const [connected, setConnected] = useState(false);
+  const [tonConnectUI] = useTonConnectUI();
 
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      background: #f0e68c;
-      padding: 20px;
-    }
-    button {
-      background: #228B22;
-      color: white;
-      border: none;
-      padding: 15px 30px;
-      font-size: 18px;
-      border-radius: 10px;
-      margin: 10px;
-    }
-    .counter {
-      font-size: 22px;
-      margin: 15px;
-      font-weight: bold;
-    }
-  </style>
-</head>
+  useEffect(() => {
+    TelegramWebApp.ready();
+    TelegramWebApp.expand();
+    const initData = TelegramWebApp.initDataUnsafe;
+    setUserId(initData?.user?.id?.toString() || 'guest');
+    fetchPoints();  // Backend call
+    const interval = setInterval(regenEnergy, 3000);
+    return () => clearInterval(interval);
+  }, []);
 
-<body>
+  const fetchPoints = async () => {
+    const res = await fetch(`/api/user/${userId}`);
+    const data = await res.json();
+    setPoints(data.points || 0);
+    setEnergy(data.energy || 100);
+    setLevel(data.level || 1);
+    setCoinsPerTap(data.coinsPerTap || 1);
+    setReferrals(data.referrals?.length || 0);
+  };
 
-  <h1>☕ Buna Game</h1>
-  <p>Tap and collect Buna points</p>
+  const handleTap = async () => {
+    if (energy <= 0) return;
+    setIsTapped(true);
+    const newPoints = points + coinsPerTap * level;
+    setPoints(newPoints);
+    setEnergy(energy - 1);
+    await fetch('/api/tap', { method: 'POST', body: JSON.stringify({ userId, points: newPoints }) });
+    setTimeout(() => setIsTapped(false), 150);
+  };
 
-  <button onclick="tap()">☕ Buna +1</button>
+  const regenEnergy = () => setEnergy(Math.min(energy + 5, 100));
 
-  <div class="counter">Buna: <span id="buna">0</span></div>
-  <div class="counter">Points: <span id="points">0</span></div>
+  const claimAirdrop = async () => {
+    if (!connected || points < 1000) return alert('Min 1000 points!');
+    const wallet = await tonConnectUI.connectWallet();
+    // Send to Jetton contract (your BUNA token address)
+    const tx = await tonConnectUI.sendTransaction({
+      messages: [{
+        address: Address.parse('YOUR_JETTON_CONTRACT_ADDRESS'),
+        amount: '1000000000',  // 1 BUNA (9 decimals)
+        payload: `claim:${userId}:${points}`
+      }]
+    });
+    await fetch(`/api/claim/${userId}`, { method: 'POST' });
+    setPoints(0);  // Reset after claim
+    alert('Airdrop claimed! Check wallet.');
+  };
 
-  <button onclick="dailyBonus()">⭐ Daily Bonus</button>
-  <button onclick="shareGame()">👥 Share Game</button>
+  return (
+    <div className="min-h-screen bg-gradient-to-b from-[#FFD700] to-[#FF8C00] flex flex-col items-center justify-center p-4 text-black font-bold">
+      {/* Header */}
+      <h1 className="text-5xl mb-8 animate-bounce">☕ Buna Game</h1>
+      
+      {/* Points */}
+      <div className="text-6xl mb-4">{points.toLocaleString()}</div>
+      <p className="text-2xl mb-8">BUNA Points (Airdrop Ready!)</p>
 
-  <script>
-    /* ---------------- Telegram Setup ---------------- */
-    const tg = Telegram.WebApp;
-    tg.ready();
-    tg.expand();
+      {/* Tap Button - Addictive Animation */}
+      <div
+        onClick={handleTap}
+        className={`w-72 h-72 rounded-full bg-white shadow-2xl flex items-center justify-center cursor-pointer transition-all duration-200 hover:scale-110 ${isTapped ? 'scale-95 rotate-12' : ''}`}
+      >
+        <div className="text-8xl animate-pulse">☕</div>  {/* Buna coffee emoji */}
+      </div>
 
-    const user = tg.initDataUnsafe?.user;
-    if (user) {
-      console.log("User ID:", user.id);
-    }
+      {/* Stats */}
+      <div className="mt-12 w-full max-w-md space-y-4">
+        <div className="flex justify-between">
+          <span>Energy:</span> <span>{energy}</span>
+        </div>
+        <div className="w-full bg-gray-300 rounded-full h-6">
+          <div className="bg-green-500 h-6 rounded-full transition-all" style={{width: `${energy}%`}} />
+        </div>
+        <div>Level: {level} | Tap Power: {coinsPerTap}x</div>
+        <div>Referrals: {referrals}</div>
+      </div>
 
-    /* ---------------- Game State ---------------- */
-    let buna = parseInt(localStorage.getItem("buna")) || 0;
-    let points = parseInt(localStorage.getItem("points")) || 0;
+      {/* Upgrades (Addictive) */}
+      <div className="mt-8 grid grid-cols-2 gap-4">
+        <button className="px-6 py-3 bg-blue-500 text-white rounded-xl hover:bg-blue-600" onClick={() => {/* Backend upgrade call */}}>
+          Upgrade Tap (+1) - {level * 100} pts
+        </button>
+        <button className="px-6 py-3 bg-green-500 text-white rounded-xl hover:bg-green-600">
+          Daily Task
+        </button>
+      </div>
 
-    updateUI();
+      {/* TON Connect + Claim */}
+      <div className="mt-12 space-y-4">
+        <TonConnectButton className="px-8 py-4 bg-purple-500 text-white rounded-xl" />
+        <button onClick={claimAirdrop} className="px-8 py-4 bg-red-500 text-white rounded-xl font-bold">
+          Claim BUNA Airdrop!
+        </button>
+      </div>
 
-    /* ---------------- Functions ---------------- */
+      {/* Referral */}
+      <p className="mt-8 text-center text-lg">Invite friends: t.me/{TelegramWebApp.initDataUnsafe?.user?.username || 'yourbot'}?start=ref_{userId}</p>
+    </div>
+  );
+}
 
-    function tap() {
-      buna++;
-      points++;
-
-      save();
-      updateUI();
-
-      if (navigator.vibrate) navigator.vibrate(40);
-    }
-
-    function dailyBonus() {
-      const today = new Date().toDateString();
-      const last = localStorage.getItem("lastBonus");
-
-      if (last !== today) {
-        buna += 200;
-        points += 200;
-        localStorage.setItem("lastBonus", today);
-
-        save();
-        updateUI();
-        alert("⭐ Daily Bonus: +200 Buna");
-      } else {
-        alert("✅ You already claimed today’s bonus");
-      }
-    }
-
-    function shareGame() {
-      Telegram.WebApp.openTelegramLink(
-        "https://t.me/share/url?url=https://t.me/BunaGameBot&text=☕%20Play%20Buna%20Game!"
-      );
-    }
-
-    /* ---------------- Helpers ---------------- */
-
-    function save() {
-      localStorage.setItem("buna", buna);
-      localStorage.setItem("points", points);
-    }
-
-    function updateUI() {
-      document.getElementById("buna").innerText = buna;
-      document.getElementById("points").innerText = points;
-    }
-  </script>
-
-</body>
-</html>
+export default BunaGame;
